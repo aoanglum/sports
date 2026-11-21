@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Teams">
+<meta name="theme-color" content="#0f172a">
+<title>My Teams</title>
+<style>
+
+:root{--bg:#0f172a;--card:#1e293b;--text:#f1f5f9;--dim:#94a3b8;--accent:#38bdf8}
+@media (prefers-color-scheme:light){:root{--bg:#e0f2fe;--card:#fff;--text:#0f172a;--dim:#475569;--accent:#0369a1}}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(#1e3a8a,#0f172a) fixed;color:var(--text);font:16px -apple-system,system-ui,sans-serif;padding:max(16px,env(safe-area-inset-top)) 16px 32px}
+main{max-width:520px;margin:0 auto}
+form{display:flex;gap:8px;position:relative}
+input{flex:1;min-width:0;padding:12px;border-radius:12px;border:0;background:var(--card);color:var(--text);font-size:16px}
+button{border:0;border-radius:12px;background:var(--card);color:var(--text);font-size:18px;padding:0 14px;cursor:pointer}
+#results{list-style:none;margin:6px 0 0;padding:0;background:var(--card);border-radius:12px;overflow:hidden}
+#results li{padding:12px;border-bottom:1px solid var(--bg);cursor:pointer}
+.card{background:var(--card);border-radius:18px;padding:18px;margin-top:14px}
+.now{text-align:center}
+.now .place{color:var(--dim)}
+.now .temp{font-size:84px;font-weight:200;line-height:1}
+.now .icon{font-size:56px}
+.dim{color:var(--dim);font-size:14px}
+.strip{display:flex;gap:16px;overflow-x:auto;padding-bottom:4px}
+.hr{flex:none;text-align:center;min-width:44px}
+.hr div:nth-child(2){font-size:22px;margin:4px 0}
+.day{display:grid;grid-template-columns:60px 32px 1fr auto auto;align-items:center;gap:8px;padding:8px 0}
+.day+.day{border-top:1px solid var(--bg)}
+.rain{color:var(--accent);font-size:13px}
+.now .icon{display:inline-block;animation:bob 3s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-8px) rotate(4deg)}}
+.quip{margin-top:8px;font-weight:600;color:var(--accent)}
+.card{animation:rise .5s both}.card:nth-of-type(2){animation-delay:.08s}.card:nth-of-type(3){animation-delay:.16s}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}}
+.flake{position:fixed;top:-20px;pointer-events:none;color:#fff;opacity:.8;animation:fall linear infinite;z-index:0}
+@keyframes fall{to{transform:translateY(110vh) translateX(30px)}}
+main{position:relative;z-index:1}
+.ski h3{margin:0 0 2px;font-size:18px}
+.ski .total{font-size:30px;font-weight:300}
+.sday{display:grid;grid-template-columns:50px 1fr 52px;align-items:center;gap:8px;padding:5px 0}
+.bar{height:12px;border-radius:6px;background:var(--bg);overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#7dd3fc,#fff);border-radius:6px}
+.pow{display:inline-block;background:#f97316;color:#fff;border-radius:8px;padding:1px 7px;font-size:12px;font-weight:700;margin-left:6px}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tabs button{flex:1;padding:10px;font-size:16px;font-weight:600;color:#fff;background:rgba(255,255,255,.15)}
+.tabs button.on{background:var(--accent);color:#fff}
+.team h3{margin:0;font-size:18px;display:flex;justify-content:space-between;align-items:baseline}
+.team .rec{font-size:14px;font-weight:400;color:var(--dim)}
+.row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--bg)}
+.row .l{color:var(--dim);font-size:13px;min-width:46px}
+.row .r{text-align:right;flex:1}
+.W{color:#22c55e;font-weight:700}.L{color:#ef4444;font-weight:700}
+.live{background:#ef4444;color:#fff;border-radius:6px;padding:1px 6px;font-size:12px;font-weight:700;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.5}}
+.news{font-size:14px;padding:6px 0;border-top:1px solid var(--bg)}
+.news a{color:var(--text);text-decoration:none}
+.today .item{display:flex;justify-content:space-between;padding:4px 0}
+#err{color:#f87171;margin-top:12px}
+
+h1{font-size:22px;margin:0 0 4px;color:#fff}
+.sub{color:#cbd5e1;font-size:13px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<main>
+  <h1>🏆 My Teams</h1>
+  <div class="sub">Scores · schedules · headlines <span id="upd"></span></div>
+  <div id="teams"></div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+
+const TEAMS=[
+  {name:"Tennessee Titans",emoji:"🏈",path:"football/nfl",id:10},
+  {name:"UNC Basketball",emoji:"🏀",path:"basketball/mens-college-basketball",id:153},
+  {name:"UNC Football",emoji:"🏈",path:"football/college-football",id:153},
+  {name:"Carolina Hurricanes",emoji:"🏒",path:"hockey/nhl",id:7},
+  {name:"Colorado Rockies",emoji:"⚾",path:"baseball/mlb",id:27},
+];
+const ESPN="https://site.api.espn.com/apis/site/v2/sports/";
+let DATA=null;
+async function loadData(){const r=await fetch("data.json?t="+Date.now());if(!r.ok)throw new Error("data "+r.status);DATA=await r.json();}
+const nm=t=>t.shortDisplayName||t.displayName||t.abbreviation;
+const when=d=>new Date(d).toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+const sameDay=d=>new Date(d).toDateString()===new Date().toDateString();
+function parse(e,id){
+  const c=e.competitions[0],me=c.competitors.find(x=>String(x.team.id)==String(id)),op=c.competitors.find(x=>x!==me);
+  const st=c.status.type,sc=x=>x&&x.score?(x.score.displayValue??x.score):"";
+  const tv=(c.broadcasts||[]).map(b=>b.media&&b.media.shortName).filter(Boolean)[0];
+  return {date:e.date,state:st.state,detail:st.shortDetail,me,op,home:me.homeAway==="home",ms:sc(me),os:sc(op),win:me.winner,tv,opName:nm(op.team)};
+}
+async function teamData(t){
+  const dd=(DATA.teams||{})[t.path+"/"+t.id]||{};
+  const games=(dd.events||[]).map(e=>parse(e,t.id));
+  const live=games.find(g=>g.state==="in");
+  const past=games.filter(g=>g.state==="post").pop();
+  const next=games.find(g=>g.state==="pre");
+  const team=dd.team||{};
+  const rec=team.recordSummary||"";
+  const news=dd.articles||[];
+  return {t,live,past,next,rec,news,standing:team.standingSummary||""};
+}
+const vs=g=>(g.home?"vs ":"@ ")+g.opName;
+function card(d){
+  let rows="";
+  if(d.live)rows+=`<div class="row"><div class="l"><span class="live">LIVE</span></div><div class="r"><b>${d.live.ms}–${d.live.os}</b> ${vs(d.live)}<div class="dim">${d.live.detail}${d.live.tv?" · "+d.live.tv:""}</div></div></div>`;
+  if(d.past)rows+=`<div class="row"><div class="l">Last</div><div class="r"><span class="${d.past.win?"W":"L"}">${d.past.win?"W":"L"}</span> ${d.past.ms}–${d.past.os} ${vs(d.past)}<div class="dim">${new Date(d.past.date).toLocaleDateString(undefined,{month:"short",day:"numeric"})}</div></div></div>`;
+  if(d.next)rows+=`<div class="row"><div class="l">Next</div><div class="r">${vs(d.next)}<div class="dim">${when(d.next.date)}${d.next.tv?" · "+d.next.tv:""}</div></div></div>`;
+  if(!d.live&&!d.next)rows+=`<div class="row"><div class="l">Next</div><div class="r dim">No upcoming game scheduled</div></div>`;
+  const news=d.news.map(a=>`<div class="news"><a href="${a.links&&a.links.web?a.links.web.href:"#"}" target="_blank" rel="noopener">📰 ${a.headline}</a></div>`).join("");
+  return `<div class="card team"><h3><span>${d.t.emoji} ${d.t.name}</span><span class="rec">${d.rec}${d.standing?" · "+d.standing:""}</span></h3>${rows}${news}</div>`;
+}
+let teamsTimer=null;
+async function showTeams(){
+  const el=$("teams");
+  if(!el.innerHTML)el.innerHTML='<div class="card dim">Loading teams…</div>';
+  await loadData();
+  const all=await Promise.all(TEAMS.map(teamData));
+  const todays=[];
+  all.forEach(d=>[d.live,d.next,d.past].forEach(g=>{if(g&&sameDay(g.date)&&!todays.some(x=>x.g===g))todays.push({d,g})}));
+  todays.sort((a,b)=>new Date(a.g.date)-new Date(b.g.date));
+  const tcard=todays.length?`<div class="card today"><div class="dim" style="margin-bottom:6px">📅 Today</div>${todays.map(({d,g})=>`<div class="item"><span>${d.t.emoji} ${d.t.name} ${vs(g)}</span><span>${g.state==="pre"?new Date(g.date).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}):g.state==="in"?'<span class="live">LIVE</span> '+g.ms+"–"+g.os:g.ms+"–"+g.os+" F"}</span></div>`).join("")}</div>`:"";
+  el.innerHTML=tcard+all.map(card).join("");
+  const u=$("upd");if(u&&DATA.updated)u.textContent="· updated "+new Date(DATA.updated).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
+  clearTimeout(teamsTimer);
+  teamsTimer=setTimeout(showTeams,1800000);
+}
+
+showTeams().catch(e=>{$("teams").innerHTML='<div class="card dim">Couldn\'t load: '+e.message+'</div>'});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)showTeams()});
+</script>
+</body>
+</html>
