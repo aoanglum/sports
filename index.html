@@ -72,7 +72,7 @@ const dkey=d=>new Date(d).toLocaleDateString("en-CA",{timeZone:TZ});
 const sameDay=d=>dkey(d)===dkey(new Date());
 function parse(e,id){
   const c=e.competitions[0],me=c.competitors.find(x=>String(x.team.id)==String(id)),op=c.competitors.find(x=>x!==me);
-  const st=c.status.type,sc=x=>x&&x.score?(x.score.displayValue??x.score):"";
+  const st=c.status.type,sc=x=>{const v=x&&x.score;if(v==null)return"";const r=typeof v==="object"?v.displayValue:v;return r==null?"":String(r)};
   const tv=(c.broadcasts||[]).map(b=>b.media&&b.media.shortName).filter(Boolean)[0];
   return {date:e.date,state:st.state,detail:st.shortDetail,me,op,home:me.homeAway==="home",ms:sc(me),os:sc(op),win:me.winner,tv,opName:nm(op.team)};
 }
@@ -92,7 +92,7 @@ const fd=d=>new Date(d).toLocaleDateString(undefined,{timeZone:TZ,month:"short",
 function card(d){
   const tile=(k,body)=>`<div class="g">${k}${body}</div>`;
   const tiles=[];
-  if(d.live)tiles.push(tile(`<div class="k"><span class="live">LIVE</span><span>${d.live.detail}</span></div>`,`<div class="opp">${vs(d.live)}</div><div class="sc">${d.live.ms}–${d.live.os}</div>`));
+  if(d.live)tiles.push(tile(`<div class="k"><span class="live">LIVE</span><span>${d.live.detail}</span></div>`,`<div class="opp">${vs(d.live)}</div>${d.live.ms!==""&&d.live.os!==""?`<div class="sc">${d.live.ms}–${d.live.os}</div>`:`<div class="when">In progress</div>`}`));
   if(d.past)tiles.push(tile(`<div class="k"><span>Last</span><span>${fd(d.past.date)}</span></div>`,`<div class="opp">${vs(d.past)}</div><div class="sc"><small class="${d.past.win?"W":"L"}">${d.past.win?"W":"L"}</small>${d.past.ms}–${d.past.os}</div>`));
   if(d.next)tiles.push(tile(`<div class="k"><span>Next</span>${d.next.tv?`<span>${d.next.tv}</span>`:""}</div>`,`<div class="opp">${vs(d.next)}</div><div class="when">${when(d.next.date)}</div>`));
   else if(!d.live)tiles.push(tile(`<div class="k"><span>Next</span></div>`,`<div class="opp dim">Nothing scheduled</div><div class="when">Check back later</div>`));
@@ -108,7 +108,7 @@ async function showTeams(){
   const todays=[];
   all.forEach(d=>[d.live,d.next,d.past].forEach(g=>{if(g&&sameDay(g.date)&&!todays.some(x=>x.g===g))todays.push({d,g})}));
   todays.sort((a,b)=>new Date(a.g.date)-new Date(b.g.date));
-  const tcard=todays.length?`<div class="card today"><div class="label">Today</div>${todays.map(({d,g})=>`<div class="item"><span>${d.t.emoji} ${d.t.name} <span class="dim">${vs(g)}</span></span><span class="t">${g.state==="pre"?new Date(g.date).toLocaleTimeString(undefined,{timeZone:TZ,hour:"numeric",minute:"2-digit"}):g.state==="in"?'<span class="live">LIVE</span> '+g.ms+"–"+g.os:g.ms+"–"+g.os+" F"}</span></div>`).join("")}</div>`:"";
+  const tcard=todays.length?`<div class="card today"><div class="label">Today</div>${todays.map(({d,g})=>`<div class="item"><span>${d.t.emoji} ${d.t.name} <span class="dim">${vs(g)}</span></span><span class="t">${g.state==="pre"?new Date(g.date).toLocaleTimeString(undefined,{timeZone:TZ,hour:"numeric",minute:"2-digit"}):g.state==="in"?'<span class="live">LIVE</span> '+(g.ms!==""&&g.os!==""?g.ms+"–"+g.os:g.detail):g.ms+"–"+g.os+" F"}</span></div>`).join("")}</div>`:"";
   el.innerHTML=tcard+all.map(card).join("");
   $("day").textContent=new Date().toLocaleDateString(undefined,{timeZone:TZ,weekday:"long",month:"short",day:"numeric"});
   const u=$("upd");if(u&&DATA.updated)u.textContent="Updated "+new Date(DATA.updated).toLocaleTimeString(undefined,{timeZone:TZ,hour:"numeric",minute:"2-digit"});
